@@ -40,21 +40,35 @@ workflows:
         # or unset the build still succeeds — it falls back to the CI counter.
         APP_STORE_APP_ID: "REPLACE_WITH_APP_STORE_CONNECT_APP_ID"
         BUNDLE_ID: "com.shadematchglobal.shadematchglobal"
-      # Manual signing, using the profile and certificate uploaded to Codemagic
-      # (Settings > Code signing identities). The automatic form —
-      # distribution_type plus bundle_identifier — only asks the API key to
-      # fetch signing assets and ignores the uploaded identities entirely.
-      # That is what the previous version of this file used, and it cannot
-      # work on this account.
+      # Automatic signing, and it works here for one specific reason: the App
+      # Store profile for this bundle id was created by hand in the Developer
+      # portal on 2026-09-01, before the first build ran. Automatic signing
+      # only ever *fetches* — it does not create — so it succeeds when a
+      # matching profile already exists and fails with "No matching profiles
+      # found for bundle identifier" when one does not. That failure is what
+      # makes it look broken on this account; it is really a missing profile.
       #
-      # These two names must match the reference names in Codemagic exactly.
-      # edic_distribution is shared across this team's apps; the profile is
-      # per-bundle-id and cannot be.
+      # Do not delete or let that profile expire (it runs to 2027-07-26)
+      # without either recreating it or switching to the manual form below.
+      #
+      # Manual alternative, if this ever stops resolving. It needs the profile
+      # fetched into Codemagic (Settings > Code signing identities) under
+      # exactly the reference name given here, which is a one-time UI step:
+      #
+      #   ios_signing:
+      #     provisioning_profiles:
+      #       - shadematch_app_store
+      #     certificates:
+      #       - edic_distribution
+      #
+      # If you take that path, check the certificate first: this account holds
+      # two distribution certificates, expiring 2027-07-26 and 2027-07-20. The
+      # profile for this app embeds the 2027-07-26 one. Codemagic's identity
+      # named edic_distribution must be that certificate, or signing fails
+      # with "No matching certificate found for every requested profile".
       ios_signing:
-        provisioning_profiles:
-          - shadematch_app_store
-        certificates:
-          - edic_distribution
+        distribution_type: app_store
+        bundle_identifier: com.shadematchglobal.shadematchglobal
       flutter: stable
       xcode: latest
       cocoapods: default
