@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shadematch.global/schemas/catalog-v2.json",
+  "title": "ShadeMatch Global offline catalogue",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "release",
+    "visualPolicy",
+    "undertones",
+    "brandDirectory",
+    "shades"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "2.0.0" },
+    "release": {
+      "type": "object",
+      "required": [
+        "name",
+        "verifiedThrough",
+        "shadeCount",
+        "verifiedBrandCount",
+        "directoryBrandCount"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "verifiedThrough": { "type": "string", "format": "date" },
+        "shadeCount": { "type": "integer", "minimum": 0 },
+        "verifiedBrandCount": { "type": "integer", "minimum": 0 },
+        "directoryBrandCount": { "type": "integer", "minimum": 0 },
+        "sourceFile": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "visualPolicy": { "type": "object" },
+    "undertones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "vector"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z]{1,4}$" },
+          "name": { "type": "string", "minLength": 1 },
+          "vector": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "array",
+                "prefixItems": [{ "type": "number" }, { "type": "number" }],
+                "minItems": 2,
+                "maxItems": 2
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "brandDirectory": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/brand" }
+    },
+    "brandAliases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["alias", "canonicalName"],
+        "properties": {
+          "alias": { "type": "string", "minLength": 1 },
+          "canonicalName": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "shades": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/shade" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "brand": {
+      "type": "object",
+      "required": ["id", "name", "dataStatus", "sourceStatus"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^brd_[0-9a-f]{16}$" },
+        "name": { "type": "string", "minLength": 1 },
+        "origin": { "type": ["string", "null"] },
+        "primaryRegion": { "type": ["string", "null"] },
+        "dataStatus": { "enum": ["verified", "queued"] },
+        "sourceStatus": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "visual": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "verificationStatus",
+        "rightsStatus",
+        "matchEligible",
+        "isPrimary"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^vis_[0-9a-f]{16}$" },
+        "kind": {
+          "enum": [
+            "spectrophotometer_measurement",
+            "calibrated_standardized_swatch",
+            "official_digital_swatch",
+            "official_product_image",
+            "model_wear_image",
+            "arm_swatch_image",
+            "community_image",
+            "universal_profile_estimate"
+          ]
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "displayHex": { "type": "string", "pattern": "^#[0-9A-F]{6}$" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "lab": {
+          "type": "object",
+          "required": ["l", "a", "b"],
+          "properties": {
+            "l": { "type": "number", "minimum": 0, "maximum": 100 },
+            "a": { "type": "number", "minimum": -128, "maximum": 127 },
+            "b": { "type": "number", "minimum": -128, "maximum": 127 }
+          },
+          "additionalProperties": false
+        },
+        "colourSpace": { "type": "string" },
+        "measurementMethod": { "type": "string" },
+        "verificationStatus": { "type": "string" },
+        "rightsStatus": { "type": "string" },
+        "matchEligible": { "type": "boolean" },
+        "isPrimary": { "type": "boolean" },
+        "disclaimer": { "type": "string" }
+      },
+      "anyOf": [
+        { "required": ["displayHex"] },
+        { "required": ["imageUrl"] }
+      ],
+      "additionalProperties": false
+    },
+    "shade": {
+      "type": "object",
+      "required": [
+        "id",
+        "brandId",
+        "brandName",
+        "origin",
+        "marketScope",
+        "productId",
+        "productName",
+        "productType",
+        "shadeCode",
+        "universalDepth",
+        "depthFamily",
+        "undertoneCode",
+        "undertoneName",
+        "universalProfile",
+        "status",
+        "normalizationBasis",
+        "sourceUrl",
+        "sourceType",
+        "verifiedDate",
+        "qualityFlags",
+        "visualReferences"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^shd_[0-9a-f]{16}$" },
+        "brandId": { "type": "string", "pattern": "^brd_[0-9a-f]{16}$" },
+        "brandName": { "type": "string", "minLength": 1 },
+        "origin": { "type": "string", "minLength": 1 },
+        "marketScope": { "type": "string", "minLength": 1 },
+        "productId": { "type": "string", "pattern": "^prd_[0-9a-f]{16}$" },
+        "productName": { "type": "string", "minLength": 1 },
+        "productType": { "type": "string", "minLength": 1 },
+        "shadeCode": { "type": "string", "minLength": 1 },
+        "shadeName": { "type": ["string", "null"] },
+        "manufacturerDepth": { "type": ["string", "null"] },
+        "manufacturerUndertone": { "type": ["string", "null"] },
+        "universalDepth": { "type": "integer", "minimum": 1, "maximum": 30 },
+        "depthFamily": { "type": "string", "minLength": 1 },
+        "undertoneCode": { "type": "string", "pattern": "^[A-Z]{1,4}$" },
+        "undertoneName": { "type": "string", "minLength": 1 },
+        "universalProfile": { "type": "string", "pattern": "^D(?:0[1-9]|[12][0-9]|30)-[A-Z]{1,4}$" },
+        "status": { "type": "string", "minLength": 1 },
+        "normalizationBasis": { "type": "string", "minLength": 1 },
+        "sourceUrl": { "type": "string", "format": "uri" },
+        "sourceType": { "type": "string", "minLength": 1 },
+        "sourceCoverageNote": { "type": ["string", "null"] },
+        "verifiedDate": { "type": "string", "format": "date" },
+        "qualityFlags": { "type": "array", "items": { "type": "string" } },
+        "visualReferences": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/visual" }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

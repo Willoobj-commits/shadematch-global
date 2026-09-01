@@ -1,0 +1,23 @@
+{
+  "catalogSchemaVersion": "2.0.0",
+  "verifiedThrough": "2026-08-31",
+  "sources": [
+    {
+      "fileName": "worldwide_makeup_shade_matching_system_global_v1.xlsx",
+      "role": "shade records and normalization",
+      "sha256": "be57c5cb69842a8c6f62eeccc1a4ff004966b38181159005e6cd6dc6f54c2865"
+    },
+    {
+      "fileName": "data.js",
+      "role": "expanded worldwide brand registry from the latest website package",
+      "sha256": "af78cb654b6ad8cc40a572afbe038517fc536ccd1219ae295ac1db799e56bf03"
+    }
+  ],
+  "output": {
+    "fileName": "catalog_v1.json",
+    "sha256": "e5e9563f480dcd2b06c464446dc8b75bc6c40c8a6f7fb40acd00ed8cc252f818",
+    "shadeCount": 1578,
+    "verifiedBrandCount": 34,
+    "canonicalDirectoryBrandCount": 171
+  }
+}
