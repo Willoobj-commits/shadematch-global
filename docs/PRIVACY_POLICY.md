@@ -41,11 +41,10 @@ If the app ever begins collecting data — for example, if optional cloud sync f
 
 Questions about this policy or the app's handling of data:
 
-**[ADD CONTACT EMAIL BEFORE PUBLISHING]**
+**willoo.bj@gmail.com**
 
 <!--
-  Google Play requires a working contact address in the published policy and in
-  the Play Console listing. Replace the line above with the address you want
-  shown publicly, then host this document at a stable public URL and paste that
-  URL into Play Console > App content > Privacy policy.
+  Published as docs/privacy.html and served by GitHub Pages at
+  https://willoobj-commits.github.io/shadematch-global/privacy.html
+  Keep the two in step - the HTML page is the one Play checks.
 -->
