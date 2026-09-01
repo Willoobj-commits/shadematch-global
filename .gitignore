@@ -11,3 +11,7 @@ android/.gradle/
 ios/Pods/
 ios/.symlinks/
 *.iml
+
+# Play Developer API service account keys - never commit
+play-service-account*.json
+*-service-account.json
