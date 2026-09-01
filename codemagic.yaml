@@ -1,4 +1,55 @@
 workflows:
+  ios-testflight-m4:
+    name: ShadeMatch iOS TestFlight M4
+    max_build_duration: 60
+    instance_type: mac_mini_m4
+    integrations:
+      app_store_connect: codemagic_api_key
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.shadematchglobal.shadematchglobal
+      vars:
+        BUNDLE_ID: "com.shadematchglobal.shadematchglobal"
+      flutter: stable
+      xcode: 26.4
+      cocoapods: default
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+      cancel_previous_builds: true
+    scripts:
+      - name: Set up keychain
+        script: keychain initialize
+      - name: Set up signing certificate
+        script: keychain add-certificates
+      - name: Set up code signing settings on Xcode project
+        script: xcode-project use-profiles
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Validate catalog
+        script: python3 tools/validate_catalog.py assets/data/catalog_v1.json
+      - name: Analyze and test
+        script: |
+          flutter analyze
+          flutter test
+      - name: Build signed IPA
+        script: |
+          flutter build ipa --release \
+            --build-name=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d+ -f1) \
+            --build-number=$BUILD_NUMBER \
+            --export-method=app-store
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      app_store_connect:
+        auth: integration
+
   ios-testflight:
     name: ShadeMatch iOS TestFlight
     max_build_duration: 60
