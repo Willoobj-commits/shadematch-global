@@ -38,24 +38,20 @@ workflows:
           flutter test
       - name: Build signed IPA
         script: |
-          cat > /tmp/export_options.plist <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>app-store</string>
-            <key>uploadBitcode</key>
-            <false/>
-            <key>uploadSymbols</key>
-            <true/>
-          </dict>
-          </plist>
-          EOF
+          set -euo pipefail
+          echo "Using Codemagic export options:"
+          cat /Users/builder/export_options.plist
           flutter build ipa --release \
             --build-name=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d+ -f1) \
             --build-number=$BUILD_NUMBER \
-            --export-options-plist=/tmp/export_options.plist
+            --export-options-plist=/Users/builder/export_options.plist
+          IPA_PATH=$(find build/ios -name "*.ipa" -print -quit)
+          if [ -z "$IPA_PATH" ]; then
+            echo "No .ipa was generated under build/ios."
+            find build/ios -maxdepth 6 -print | sort
+            exit 1
+          fi
+          echo "Generated IPA: $IPA_PATH"
       - name: List iOS outputs
         script: |
           find build/ios -maxdepth 5 -type f -o -type d | sort
