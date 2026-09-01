@@ -174,4 +174,16 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        # Upload to App Store Connect, and stop there. Internal TestFlight
+        # testers (your own team, up to 100) get the build as soon as
+        # processing finishes — no review, nothing to submit.
+        #
+        # submit_to_testflight: true would additionally submit for *external*
+        # beta review, which Apple refuses until Beta App Information and Beta
+        # App Review Information are filled in at
+        # appstoreconnect.apple.com/apps/6807488973/testflight/test-info.
+        # With it set and that form empty, the build succeeds and uploads but
+        # post-processing still reports failure — which reads as a broken
+        # build when nothing is broken. Turn it back on when external testing
+        # is actually wanted, after filling in that form.
+        submit_to_testflight: false
