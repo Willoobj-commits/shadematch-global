@@ -1,33 +1,21 @@
 workflows:
-  ios-testflight:
-    name: ShadeMatch iOS TestFlight
-    max_build_duration: 60
+  # Unsigned. Run this first after any change that could affect the iOS build:
+  # it separates "the code does not compile on macOS" from "signing is not set
+  # up", which look identical from Windows. Needs no Apple account at all.
+  ios-compile:
+    name: ShadeMatch iOS compile check
+    max_build_duration: 30
+    # Must match a type the account's plan allows — linux_x2 is not on this
+    # plan and the build dies at startup before a single step runs.
     instance_type: mac_mini_m2
-    integrations:
-      app_store_connect: codemagic_api_key
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.shadematchglobal.shadematchglobal
-      vars:
-        BUNDLE_ID: "com.shadematchglobal.shadematchglobal"
       flutter: stable
-      xcode: 26.4
+      xcode: latest
       cocoapods: default
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-          include: true
-      cancel_previous_builds: true
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
     scripts:
-      - name: Set up keychain
-        script: keychain initialize
-      - name: Set up signing certificate
-        script: keychain add-certificates
-      - name: Set up code signing settings on Xcode project
-        script: xcode-project use-profiles
       - name: Get Flutter packages
         script: flutter pub get
       - name: Validate catalog
@@ -36,31 +24,140 @@ workflows:
         script: |
           flutter analyze
           flutter test
-      - name: Build signed IPA
+      - name: Build unsigned iOS binary
+        script: flutter build ios --release --no-codesign
+
+  ios-testflight:
+    name: ShadeMatch iOS TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: codemagic_api_key
+    environment:
+      vars:
+        # App Store Connect's numeric id for ShadeMatch Global, used only to
+        # ask TestFlight which build number it already has. If this is wrong
+        # or unset the build still succeeds — it falls back to the CI counter.
+        APP_STORE_APP_ID: "REPLACE_WITH_APP_STORE_CONNECT_APP_ID"
+        BUNDLE_ID: "com.shadematchglobal.shadematchglobal"
+      # Manual signing, using the profile and certificate uploaded to Codemagic
+      # (Settings > Code signing identities). The automatic form —
+      # distribution_type plus bundle_identifier — only asks the API key to
+      # fetch signing assets and ignores the uploaded identities entirely.
+      # That is what the previous version of this file used, and it cannot
+      # work on this account.
+      #
+      # These two names must match the reference names in Codemagic exactly.
+      # edic_distribution is shared across this team's apps; the profile is
+      # per-bundle-id and cannot be.
+      ios_signing:
+        provisioning_profiles:
+          - shadematch_app_store
+        certificates:
+          - edic_distribution
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      # "No matching certificate found for every requested profile" does not
+      # say whether the certificate, the bundle id, or the API key's
+      # permissions is at fault. This reports what the account actually has
+      # before signing runs. It never fails the build — it exists to make the
+      # next failure readable.
+      - name: Report signing assets
         script: |
-          set -euo pipefail
-          echo "Using Codemagic export options:"
-          cat /Users/builder/export_options.plist
-          flutter build ipa --release \
-            --build-name=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d+ -f1) \
-            --build-number=$BUILD_NUMBER \
-            --export-options-plist=/Users/builder/export_options.plist
-          IPA_PATH=$(find build/ios -name "*.ipa" -print -quit)
-          if [ -z "$IPA_PATH" ]; then
-            echo "No .ipa was generated under build/ios."
-            find build/ios -maxdepth 6 -print | sort
+          echo "── Distribution certificates on the account ──"
+          app-store-connect list-certificates --type IOS_DISTRIBUTION || \
+            echo "!! could not list certificates — usually means the API key lacks App Manager access"
+          echo "── Bundle id ──"
+          app-store-connect list-bundle-ids \
+            --bundle-id-identifier "$BUNDLE_ID" || echo "!! could not list bundle ids"
+          echo "── App Store provisioning profiles ──"
+          app-store-connect list-profiles \
+            --bundle-id-identifier "$BUNDLE_ID" \
+            --type IOS_APP_STORE || echo "!! could not list profiles"
+        ignore_failure: true
+      # TestFlight rejects a build number it has already seen, so bumping
+      # pubspec by hand before every upload is a step that will eventually be
+      # forgotten. Ask App Store Connect what it has and go one higher; the
+      # value in pubspec then only matters for local builds.
+      - name: Pick a build number TestFlight has not seen
+        script: |
+          case "$APP_STORE_APP_ID" in
+            ''|REPLACE_WITH_*)
+              echo "!! APP_STORE_APP_ID is not set — falling back to the CI counter."
+              echo "   Set it to the numeric Apple ID from App Store Connect > App Information."
+              LATEST=""
+              ;;
+            *)
+              LATEST=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>/dev/null || true)
+              ;;
+          esac
+
+          # Treat empty (no builds yet) or any non-numeric output as unknown,
+          # rather than feeding it to arithmetic and aborting.
+          case "$LATEST" in
+            ''|*[!0-9]*) LATEST=0 ;;
+          esac
+
+          NEXT=$((LATEST + 1))
+          if [ "$NEXT" -le 1 ] && [ -n "$BUILD_NUMBER" ]; then
+            NEXT=$((BUILD_NUMBER + 1))
+            echo "Could not read TestFlight — using CI counter, building $NEXT"
+          else
+            echo "TestFlight's highest is $LATEST — building $NEXT"
+          fi
+          echo "BUILD_NUMBER=$NEXT" >> "$CM_ENV"
+      - name: Get Flutter packages
+        script: flutter pub get
+      # A release gate. This workflow is started by hand and can be pointed at
+      # any commit, including one that never had a compile check. A failure
+      # here stops the run before any ipa exists, so the log ends with "No
+      # artifacts were found" — read the step list, not the last line.
+      - name: Validate catalog, analyze and test before shipping
+        script: |
+          python3 tools/validate_catalog.py assets/data/catalog_v1.json
+          flutter analyze
+          flutter test
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
+          # use-profiles writes this; without it the export below silently
+          # falls back to Xcode's defaults and can produce a development
+          # build, or nothing at all.
+          if [ ! -f /Users/builder/export_options.plist ]; then
+            echo "!! use-profiles did not write export_options.plist —"
+            echo "   signing assets did not resolve. See the report above."
             exit 1
           fi
-          echo "Generated IPA: $IPA_PATH"
-      - name: List iOS outputs
+      - name: Build ipa for distribution
         script: |
-          find build/ios -maxdepth 5 -type f -o -type d | sort
+          flutter build ipa --release \
+            --build-name=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d+ -f1) \
+            --build-number="$BUILD_NUMBER" \
+            --export-options-plist=/Users/builder/export_options.plist
+      # `flutter build ipa` can finish having archived but not exported, and
+      # the only symptom downstream is "No artifacts were found" at the very
+      # end of the log — which names no step and no reason. Check here, where
+      # there is still context to print.
+      - name: Verify the ipa was produced
+        script: |
+          if ! ls build/ios/ipa/*.ipa >/dev/null 2>&1; then
+            echo "!! no .ipa in build/ios/ipa — the export did not complete."
+            echo "── build/ios ──"
+            ls -lR build/ios 2>/dev/null | head -60 || echo "(no build/ios)"
+            echo "── xcodebuild logs present ──"
+            ls -l /tmp/xcodebuild_logs 2>/dev/null || echo "(none)"
+            exit 1
+          fi
+          echo "Built: $(ls -lh build/ios/ipa/*.ipa)"
     artifacts:
       - build/ios/ipa/*.ipa
-      - build/ios/**/*.ipa
-      - build/ios/archive/*.xcarchive
+      # Collected whether or not the build succeeded: when the export fails
+      # these logs carry the actual reason, and they are what is missing when
+      # the run ends with "No artifacts were found".
       - /tmp/xcodebuild_logs/*.log
-      - flutter_drive.log
     publishing:
       app_store_connect:
         auth: integration
+        submit_to_testflight: true

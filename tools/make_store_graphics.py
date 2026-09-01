@@ -188,12 +188,41 @@ def write_launcher_icons(source: Image.Image, res_dir: Path) -> list[Path]:
     return written
 
 
+def write_ios_icons(source: Image.Image, appiconset: Path) -> list[Path]:
+    """Rewrite every entry in the iOS AppIcon set.
+
+    Sizes come from Contents.json rather than a hardcoded table, so this stays
+    correct if Flutter's template changes. Icons are written without an alpha
+    channel: App Store Connect rejects a 1024 icon that has one.
+    """
+    import json
+
+    manifest = appiconset / "Contents.json"
+    if not manifest.is_file():
+        return []
+
+    flat = source.convert("RGB")
+    written = []
+    for entry in json.loads(manifest.read_text(encoding="utf-8")).get("images", []):
+        filename = entry.get("filename")
+        if not filename:
+            continue
+        points = float(entry["size"].split("x")[0])
+        scale = float(entry["scale"].rstrip("x"))
+        px = round(points * scale)
+        target = appiconset / filename
+        flat.resize((px, px), Image.LANCZOS).save(target, "PNG")
+        written.append(target)
+    return written
+
+
 # --- main ------------------------------------------------------------------
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=Path("store_assets"))
     parser.add_argument("--launcher", action="store_true", help="also overwrite android launcher mipmaps")
+    parser.add_argument("--ios", action="store_true", help="also overwrite the iOS AppIcon set")
     args = parser.parse_args()
 
     args.out.mkdir(parents=True, exist_ok=True)
@@ -210,6 +239,14 @@ def main() -> int:
 
     if args.launcher:
         for path in write_launcher_icons(icon, Path("android/app/src/main/res")):
+            print(f"wrote {path}")
+
+    if args.ios:
+        appiconset = Path("ios/Runner/Assets.xcassets/AppIcon.appiconset")
+        written = write_ios_icons(icon, appiconset)
+        if not written:
+            print(f"skipped iOS icons - no Contents.json at {appiconset}")
+        for path in written:
             print(f"wrote {path}")
 
     return 0
