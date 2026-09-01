@@ -26,13 +26,14 @@ Build the ShadeMatch Global Flutter app from `C:\Users\Administrator\Desktop\Sha
 - Built signed Android App Bundle - validated 2026-09-01 - artifact at `D:\shade_match_global_flutter\build\app\outputs\bundle\release\app-release.aab` (50,926,769 bytes); `jarsigner -verify` reports `jar verified`.
 - Prepared Codemagic iOS build workflow - validated 2026-09-01 - root `codemagic.yaml` now includes `ShadeMatch iOS TestFlight` with `working_directory: shade_match_global_flutter`, iOS app-store signing for `com.shadematchglobal.shadematchglobal`, catalog validation, analyzer/tests, and signed IPA artifact export.
 - Normalized iOS bundle identifier - validated 2026-09-01 - `ios\Runner.xcodeproj\project.pbxproj` now uses `com.shadematchglobal.shadematchglobal`.
+- Backed up upload signing key outside the repository - validated 2026-09-01 - `android\app\upload-keystore.jks` and `android\key.properties` copied byte-identical (sha256 verified) to `D:\keys\shadematch_upload-keystore.jks` and `D:\keys\shadematch_key.properties`; `keytool -list` on the backup opens alias `upload` (PrivateKeyEntry, SHA256 fingerprint 90:6F:32:7D:03:0F:F7:C0:B1:20:4D:F5:DC:E7:4E:6C:CA:67:EE:38:46:87:4A:08:F7:FB:58:2D:E0:EF:95:81). Still on the same physical drive - an off-device copy is outstanding.
 
 ## In progress
 - None.
 
 ## Next actions (must be executable by a fresh agent with no chat history)
 1. Upload `D:\shade_match_global_flutter\build\app\outputs\bundle\release\app-release.aab` to Play Console internal testing - acceptance criteria: Play accepts package `com.shadematchglobal.shade_match_global`, version `0.1.0+1`, signed with the generated upload key.
-2. Save a private backup of `D:\shade_match_global_flutter\android\app\upload-keystore.jks` and `D:\shade_match_global_flutter\android\key.properties` outside the repository - acceptance criteria: upload key can be recovered for future version uploads.
+2. Copy `D:\keys\shadematch_upload-keystore.jks` and `D:\keys\shadematch_key.properties` to off-device storage (password manager, encrypted cloud vault, or external drive) - acceptance criteria: the upload key survives loss of the D: drive, since losing it makes future Play Console updates to `com.shadematchglobal.shade_match_global` impossible.
 3. Optional: install or distribute `D:\shade_match_global_flutter\build\app\outputs\flutter-apk\app-release.apk` to an Android device for manual QA - acceptance criteria: app launches, bottom navigation works, catalog search opens shade details, and saved shades persist.
 4. Optional: build iOS on macOS/Xcode - files: `D:\shade_match_global_flutter\ios` - acceptance criteria: iOS archive/testflight build succeeds in an Apple toolchain environment.
 5. Configure Codemagic/Apple for iOS - acceptance criteria: App Store Connect API key integration named `codemagic_api_key`, Apple bundle ID/app record for `com.shadematchglobal.shadematchglobal`, Apple Distribution certificate, and App Store provisioning profile are available before starting workflow `ShadeMatch iOS TestFlight`.
