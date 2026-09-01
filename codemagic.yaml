@@ -38,7 +38,7 @@ workflows:
         # App Store Connect's numeric id for ShadeMatch Global, used only to
         # ask TestFlight which build number it already has. If this is wrong
         # or unset the build still succeeds — it falls back to the CI counter.
-        APP_STORE_APP_ID: "REPLACE_WITH_APP_STORE_CONNECT_APP_ID"
+        APP_STORE_APP_ID: "6807488973"
         BUNDLE_ID: "com.shadematchglobal.shadematchglobal"
       # Automatic signing, and it works here for one specific reason: the App
       # Store profile for this bundle id was created by hand in the Developer
